@@ -240,6 +240,12 @@ const server = http.createServer(async (req, res) => {
 
     // Favicon handler
     if (pathname === '/favicon.ico') {
+        const logoPath = path.join(PUBLIC_DIR, 'logo.png');
+        if (fs.existsSync(logoPath)) {
+            res.writeHead(200, { 'Content-Type': 'image/png' });
+            res.end(fs.readFileSync(logoPath));
+            return;
+        }
         res.writeHead(200, { 'Content-Type': 'image/svg+xml' });
         res.end(DEFAULT_FAVICON);
         return;
