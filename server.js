@@ -6,6 +6,14 @@ const PORT = process.env.PORT || 5000;
 const ROOT_DIR = __dirname;
 const PUBLIC_DIR = path.join(ROOT_DIR, 'public');
 
+// Server Metrics & Uptime Tracking
+const serverStats = {
+    startTime: Date.now(),
+    totalRequests: 0,
+    activeConnections: 0,
+    errorsHandled: 0
+};
+
 // MIME types dictionary
 const MIME_TYPES = {
     '.html': 'text/html; charset=utf-8',
@@ -25,7 +33,7 @@ const MIME_TYPES = {
 // Default SVG favicon
 const DEFAULT_FAVICON = Buffer.from(
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-      <circle cx="50" cy="50" r="45" fill="#6366f1" />
+      <circle cx="50" cy="50" r="45" fill="#4f46e5" />
       <path d="M30 50 L50 30 L70 50 L50 70 Z" fill="#ffffff" />
       <circle cx="50" cy="30" r="6" fill="#38bdf8" />
       <circle cx="70" cy="50" r="6" fill="#f472b6" />
@@ -82,7 +90,7 @@ async function runSimulatedBenchmark() {
     addLog('Dataset generator: SNAP soc-Pokec sample generator initialized.');
     addLog('Synthesizing 4,000 nodes & 24,000 edges with seed=42...');
 
-    await new Promise(r => setTimeout(r, 400));
+    await new Promise(r => setTimeout(r, 350));
     currentBenchmark.progress = 20;
     currentBenchmark.currentStep = 'Creating schemas and indexes across platforms...';
 
@@ -125,10 +133,19 @@ async function runSimulatedBenchmark() {
                 addLog(`[CognoDB Cloud] Connected & Authenticated in ${connMs}ms!`);
 
                 const session = driver.session();
+                
+                // Point lookup probe
                 const q0 = Date.now();
-                const liveRes = await session.run('RETURN 1 AS val');
+                await session.run('RETURN 1 AS val, datetime() AS ts');
                 const qMs = Date.now() - q0;
-                addLog(`[CognoDB Cloud] Executed test Cypher query (RETURN 1) in ${qMs}ms (status: ACTIVE)`);
+                addLog(`[CognoDB Cloud] Live Cypher ping (RETURN 1, datetime()) executed in ${qMs}ms (status: HEALTHY)`);
+                
+                // Schema probe
+                const s0 = Date.now();
+                await session.run('CREATE INDEX IF NOT EXISTS FOR (n:Person) ON (n.uid)');
+                const sMs = Date.now() - s0;
+                addLog(`[CognoDB Cloud] Index verification Person(uid) verified in ${sMs}ms`);
+
                 await session.close();
                 await driver.close();
             } catch (err) {
@@ -141,7 +158,7 @@ async function runSimulatedBenchmark() {
         addLog(`[${p.name}] Wiping existing graph state...`);
         addLog(`[${p.name}] Creating primary index Person(uid) & secondary Person(bucket)...`);
         
-        await new Promise(r => setTimeout(r, 300));
+        await new Promise(r => setTimeout(r, 250));
 
         // Load phase
         const loadDuration = parseFloat((24000 / p.loadSpeed + Math.random() * 0.2).toFixed(2));
@@ -213,7 +230,7 @@ async function runSimulatedBenchmark() {
     currentBenchmark.progress = 95;
     currentBenchmark.currentStep = 'Compiling results matrix & REPORT.md...';
     addLog('Generating REPORT.md comparison matrix and nearest-rank statistics...');
-    await new Promise(r => setTimeout(r, 300));
+    await new Promise(r => setTimeout(r, 250));
 
     currentBenchmark.progress = 100;
     currentBenchmark.status = 'completed';
@@ -222,12 +239,16 @@ async function runSimulatedBenchmark() {
     addLog('=== BENCHMARK SUITE RUN SUCCESSFULLY FINISHED ===');
 }
 
-// HTTP Server
+// HTTP Server with Defensive Engineering
 const server = http.createServer(async (req, res) => {
-    // Enable CORS
+    serverStats.totalRequests++;
+
+    // Enable CORS & Security Headers
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
 
     if (req.method === 'OPTIONS') {
         res.writeHead(204);
@@ -237,6 +258,18 @@ const server = http.createServer(async (req, res) => {
 
     const parsedUrl = new URL(req.url, `http://${req.headers.host}`);
     let pathname = decodeURIComponent(parsedUrl.pathname);
+
+    // Health Check Endpoint
+    if (pathname === '/healthz' || pathname === '/api/health') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+            status: 'healthy',
+            uptime_seconds: Math.floor((Date.now() - serverStats.startTime) / 1000),
+            total_requests: serverStats.totalRequests,
+            timestamp: new Date().toISOString()
+        }));
+        return;
+    }
 
     // Favicon handler
     if (pathname === '/favicon.ico') {
@@ -329,6 +362,7 @@ const server = http.createServer(async (req, res) => {
             res.writeHead(200, { 'Content-Type': contentType });
             res.end(content);
         } catch (err) {
+            serverStats.errorsHandled++;
             res.writeHead(500, { 'Content-Type': 'text/plain' });
             res.end(`500 Server Error: ${err.message}`);
         }
@@ -338,10 +372,19 @@ const server = http.createServer(async (req, res) => {
     }
 });
 
+// Process Error Handlers
+process.on('uncaughtException', (err) => {
+    console.error('[UNCAUGHT EXCEPTION]', err);
+});
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('[UNHANDLED REJECTION]', reason);
+});
+
 server.listen(PORT, '0.0.0.0', () => {
     console.log(`====================================================`);
     console.log(` GraphBench Cloud Benchmark Dashboard Server Running`);
     console.log(` URL: http://localhost:${PORT}`);
+    console.log(` Health: http://localhost:${PORT}/healthz`);
     console.log(` Public Directory: ${PUBLIC_DIR}`);
     console.log(`====================================================`);
 });
