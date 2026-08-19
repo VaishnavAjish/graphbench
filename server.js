@@ -272,14 +272,14 @@ const server = http.createServer(async (req, res) => {
     }
 
     // Favicon handler
-    if (pathname === '/favicon.ico') {
-        const logoPath = path.join(PUBLIC_DIR, 'logo.png');
-        if (fs.existsSync(logoPath)) {
+    if (pathname === '/favicon.ico' || pathname === '/logo.svg') {
+        const svgPath = path.join(PUBLIC_DIR, 'logo.svg');
+        if (fs.existsSync(svgPath)) {
             res.writeHead(200, {
-                'Content-Type': 'image/png',
+                'Content-Type': 'image/svg+xml',
                 'Cache-Control': 'no-cache, no-store, must-revalidate'
             });
-            res.end(fs.readFileSync(logoPath));
+            res.end(fs.readFileSync(svgPath));
             return;
         }
         res.writeHead(200, { 'Content-Type': 'image/svg+xml' });
