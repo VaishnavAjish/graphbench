@@ -1,0 +1,117 @@
+# Single source of truth for "the same workload everywhere".
+#
+# Nothing in this file is per-platform. If a value could be tuned for one
+# database and not another, it does not belong here -- and there is nowhere
+# else for it to go. That is the whole point: a reader auditing fairness reads
+# one file, not five adapters.
+#
+# Changing any value here invalidates every existing results/*.json. The
+# dataset checksum and the run timestamp in each results file are what let you
+# tell whether two tables are comparable.
+
+dataset:
+  # SNAP soc-Pokec. Named in the assignment, sparse enough that 2- and 3-hop
+  # traversals behave sensibly, and large enough that sampling is honest work.
+  # Alternatives registered in bench/dataset.py: wiki-Vote, soc-Slashdot0902.
+  name: soc-Pokec
+
+  # Sized for the SMALLEST tier in the comparison (0.5 vCPU / 256 MB / 1 GB),
+  # not the largest. A dataset that only the biggest free tier can hold would
+  # turn the benchmark into a survey of who OOMs first.
+  #
+  # ------------------------------------------------------------------------
+  # WHY NOT 150k nodes / 250k edges
+  # ------------------------------------------------------------------------
+  # That shape has a mean out-degree of 1.67. Measured on the sampler's own
+  # viability check, a graph that sparse gives a mean 3-hop reach of ~6 nodes:
+  # the traversal workload -- the centrepiece of a GRAPH database benchmark --
+  # would return almost nothing on every platform, complete in microseconds,
+  # and produce a table of near-identical numbers that says nothing about any
+  # engine. It would look like a clean result and be worthless.
+  #
+  # 100k nodes still clears the assignment's node floor, and 600k edges gives a
+  # mean out-degree of 6 -- sparse enough that a 3-hop fan-out does not touch
+  # the whole graph, dense enough that it touches something. bench/dataset.py
+  # prints a loud VIABILITY WARNING if whatever you set here drops the mean
+  # 3-hop reach below 25 nodes. Do not publish traversal numbers while that
+  # warning is firing; change these two values until it clears.
+  #
+  # If a platform's free tier cannot hold 600k relationships, that is a finding
+  # to report -- not a reason to shrink the dataset for everyone.
+  target_nodes: 100000
+  target_edges: 600000
+
+  # Every random choice in the pipeline derives from this: the snowball start
+  # node, the per-source edge subsample, and the traversal start-node list.
+  # Same seed + same source file => byte-identical graph => identical sha256.
+  seed: 42
+
+load:
+  # 5000 rows per UNWIND / import_bulk call. Large enough that per-round-trip
+  # overhead does not dominate on a cloud endpoint; small enough that the
+  # server-side parameter list does not itself blow a 256 MB heap.
+  batch_size: 5000
+
+read:
+  # Warm sample size. 120 > the 100 that stats.py requires for a p99 to mean
+  # anything, with margin for iterations lost to errors.
+  iterations: 120
+
+  # Discarded entirely. Covers JIT/plan-cache warm-up and the driver's first
+  # round of connection setup.
+  warmup_iterations: 20
+
+  # Cold sample. Small on purpose: these numbers are reported for honesty, not
+  # for ranking (see the caveat in bench/workloads.py).
+  cold_iterations: 10
+
+  # "reconnect" closes and reopens the client before each cold workload so none
+  # inherits another's driver state. Set to "none" only if a platform's
+  # connect() is so slow the reconnects distort the run -- and say so if you do.
+  cold_isolation: reconnect
+
+  # Traversal start nodes. The SAME list is used on every platform and is
+  # written into results/bench.json.
+  start_nodes: 200
+
+  # Uniform random start nodes would mostly be leaves, whose 2- and 3-hop
+  # queries return nothing instantly -- flattering every platform equally while
+  # measuring almost no graph work. 5 is low enough not to restrict the pool to
+  # hubs, high enough that traversals traverse.
+  min_out_degree: 5
+
+  hop_depths: [1, 2, 3]
+
+  # MANDATORY, and applied identically everywhere. On a social graph a 3-hop
+  # fan-out can reach a large fraction of the dataset and OOM a 256 MB
+  # instance. The consequence, stated in the README: the 3-hop numbers measure
+  # TIME TO FIRST 1000 RESULTS, not full neighbourhood expansion.
+  traversal_limit: 1000
+
+mixed:
+  # 1 = latency floor with no contention. 10 = realistic small-app load.
+  # 40 = deliberately past what a 0.5 vCPU tier can absorb; the interesting
+  # result is HOW each engine degrades (queue, throttle, error, or collapse).
+  concurrency_levels: [1, 10, 40]
+
+  # Long enough to survive a throttling window on a burstable tier, short
+  # enough that a five-platform sweep finishes in one sitting.
+  duration_s: 30
+
+  # 80% read / 20% write. Writes are single-relationship inserts, so the graph
+  # grows during the sweep -- concurrency levels run in ascending order and the
+  # growth is bounded and reported.
+  read_ratio: 0.8
+
+# Per-query server-side timeout, seconds. Applied identically on every
+# platform. A query that exceeds it is killed by the ENGINE, not abandoned by
+# the client -- otherwise the server keeps burning the 0.5 vCPU we are trying
+# to hold constant, and the next iteration's measurement is contaminated.
+# Adapters read this from their own config block; the value is repeated in
+# config/databases*.yaml as `query_timeout_s` and must match here.
+timeout_policy:
+  query_timeout_s: 30
+  note: >
+    A timeout is recorded as an error with its exception text, never as a
+    missing sample and never as a slow success. Platforms that time out on a
+    workload appear in REPORT.md section 9 with the count.

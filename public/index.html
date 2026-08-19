@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GraphBench — Cloud Graph Database Benchmark Suite</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Background glowing ambient elements -->
+    <div class="ambient-glow glow-1"></div>
+    <div class="ambient-glow glow-2"></div>
+
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-icon">
+                    <i data-lucide="network"></i>
+                </div>
+                <div class="brand-text">
+                    <h2>GraphBench</h2>
+                    <span>Cloud Database Suite</span>
+                </div>
+            </div>
+
+            <div class="server-badge">
+                <span class="pulse-dot"></span>
+                <span>Active on Port 5000</span>
+            </div>
+
+            <nav class="nav-links">
+                <button class="nav-item active" data-tab="overview">
+                    <i data-lucide="layout-dashboard"></i>
+                    <span>Live Benchmark</span>
+                </button>
+                <button class="nav-item" data-tab="files">
+                    <i data-lucide="folder-code"></i>
+                    <span>Codebase & Files</span>
+                </button>
+                <button class="nav-item" data-tab="methodology">
+                    <i data-lucide="scale"></i>
+                    <span>Methodology & Parity</span>
+                </button>
+                <button class="nav-item" data-tab="queries">
+                    <i data-lucide="code-2"></i>
+                    <span>Query Parity (Cypher/AQL)</span>
+                </button>
+                <button class="nav-item" data-tab="report">
+                    <i data-lucide="file-text"></i>
+                    <span>Report Matrix</span>
+                </button>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="platform-chips">
+                    <span class="chip cogno">CognoDB</span>
+                    <span class="chip neo">Neo4j</span>
+                    <span class="chip mem">Memgraph</span>
+                    <span class="chip fal">FalkorDB</span>
+                    <span class="chip ara">ArangoDB</span>
+                </div>
+                <div class="footer-meta">
+                    <small>C:\Vaishnav@\graphbench</small>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Top App Bar -->
+            <header class="top-bar">
+                <div class="page-title">
+                    <h1 id="tab-heading">Live Benchmark Runner & Dashboard</h1>
+                    <p id="tab-subheading">Resource-matched fair comparison on SNAP soc-Pokec dataset (0.5 vCPU / 256 MB RAM ceiling)</p>
+                </div>
+                <div class="top-actions">
+                    <button class="btn btn-outline" id="btn-quick-selftest">
+                        <i data-lucide="shield-check"></i>
+                        <span>Run Self-Test</span>
+                    </button>
+                    <button class="btn btn-primary" id="btn-run-bench">
+                        <i data-lucide="play"></i>
+                        <span>Start Full Suite</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- TAB 1: Live Benchmark Runner & Dashboard -->
+            <section id="tab-overview" class="tab-panel active">
+                <!-- Status & Control Card -->
+                <div class="glass-card runner-card">
+                    <div class="runner-header">
+                        <div class="runner-info">
+                            <span class="status-pill status-idle" id="bench-status-badge">READY</span>
+                            <span class="step-text" id="bench-step-text">Click 'Start Full Suite' to execute workloads across all 5 platforms</span>
+                        </div>
+                        <div class="runner-stats">
+                            <div class="stat-box">
+                                <span class="stat-label">Dataset</span>
+                                <span class="stat-val">250k Rels</span>
+                            </div>
+                            <div class="stat-box">
+                                <span class="stat-label">Instance Cap</span>
+                                <span class="stat-val">0.5 vCPU / 256MB</span>
+                            </div>
+                            <div class="stat-box">
+                                <span class="stat-label">Warm Samples</span>
+                                <span class="stat-val">120 iters</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div class="progress-container">
+                        <div class="progress-bar" id="bench-progress-bar" style="width: 0%;"></div>
+                    </div>
+
+                    <!-- Live Log Terminal Accordion -->
+                    <div class="terminal-wrapper">
+                        <div class="terminal-header" id="terminal-toggle">
+                            <div class="term-title">
+                                <i data-lucide="terminal"></i>
+                                <span>Execution Console Log</span>
+                            </div>
+                            <div class="term-controls">
+                                <span class="log-count" id="log-count">0 messages</span>
+                                <i data-lucide="chevron-down" id="term-chevron"></i>
+                            </div>
+                        </div>
+                        <div class="terminal-body" id="terminal-body">
+                            <div class="log-line text-muted">[System] Ready. Waiting for benchmark start trigger...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Live Performance Visualizations -->
+                <div class="charts-grid">
+                    <div class="glass-card chart-card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <i data-lucide="zap"></i>
+                                <h3>Warm Read Latency (p50 ms — Lower is better)</h3>
+                            </div>
+                            <span class="badge-tag">120 iterations</span>
+                        </div>
+                        <div class="chart-wrapper">
+                            <canvas id="latencyChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="glass-card chart-card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <i data-lucide="arrow-up-right"></i>
+                                <h3>Ingest Throughput (Relationships / Sec)</h3>
+                            </div>
+                            <span class="badge-tag">UNWIND Batch=5k</span>
+                        </div>
+                        <div class="chart-wrapper">
+                            <canvas id="ingestChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-card chart-card wide-chart">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <i data-lucide="activity"></i>
+                            <h3>Concurrency Sweep Throughput (QPS @ 1, 10, 40 Clients — 80% Read / 20% Write)</h3>
+                        </div>
+                        <span class="badge-tag">30s Sustained</span>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="concurrencyChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Platform Latency Summary Table -->
+                <div class="glass-card table-card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <i data-lucide="table"></i>
+                            <h3>Warm Read Workload Latencies (p50 / p95 in ms)</h3>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="benchmark-table" id="summary-table">
+                            <thead>
+                                <tr>
+                                    <th>Platform</th>
+                                    <th>Point Lookup</th>
+                                    <th>Filtered Scan</th>
+                                    <th>1-Hop Traversal</th>
+                                    <th>2-Hop Traversal</th>
+                                    <th>3-Hop Traversal</th>
+                                    <th>Aggregation</th>
+                                </tr>
+                            </thead>
+                            <tbody id="summary-table-body">
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted">Run benchmark to populate real-time metrics.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 2: Codebase & File Inspector -->
+            <section id="tab-files" class="tab-panel">
+                <div class="file-inspector-layout">
+                    <!-- File List Nav -->
+                    <div class="file-sidebar glass-card">
+                        <div class="file-sidebar-title">
+                            <i data-lucide="files"></i>
+                            <span>Project Files</span>
+                        </div>
+                        <ul class="file-list" id="file-selector-list">
+                            <li class="file-item active" data-file="README.md">
+                                <i data-lucide="file-text"></i>
+                                <div class="file-info">
+                                    <strong>README.md</strong>
+                                    <span>Benchmark spec & fairness rules</span>
+                                </div>
+                            </li>
+                            <li class="file-item" data-file="run.py">
+                                <i data-lucide="file-code"></i>
+                                <div class="file-info">
+                                    <strong>run.py</strong>
+                                    <span>CLI orchestrator (check/load/bench/report)</span>
+                                </div>
+                            </li>
+                            <li class="file-item" data-file="bench/adapters/base.py">
+                                <i data-lucide="file-code"></i>
+                                <div class="file-info">
+                                    <strong>base.py</strong>
+                                    <span>Abstract GraphAdapter interface</span>
+                                </div>
+                            </li>
+                            <li class="file-item" data-file="bench/adapters/bolt.py">
+                                <i data-lucide="file-code"></i>
+                                <div class="file-info">
+                                    <strong>bolt.py</strong>
+                                    <span>Bolt + Cypher (Neo4j / Memgraph / Cogno)</span>
+                                </div>
+                            </li>
+                            <li class="file-item" data-file="bench/adapters/others.py">
+                                <i data-lucide="file-code"></i>
+                                <div class="file-info">
+                                    <strong>others.py</strong>
+                                    <span>FalkorDB (RESP) & ArangoDB (AQL)</span>
+                                </div>
+                            </li>
+                            <li class="file-item" data-file="bench/workloads.py">
+                                <i data-lucide="file-code"></i>
+                                <div class="file-info">
+                                    <strong>workloads.py</strong>
+                                    <span>Cold/Warm timings & Concurrency loop</span>
+                                </div>
+                            </li>
+                            <li class="file-item" data-file="bench/dataset.py">
+                                <i data-lucide="file-code"></i>
+                                <div class="file-info">
+                                    <strong>dataset.py</strong>
+                                    <span>Snowball sampling & checksum</span>
+                                </div>
+                            </li>
+                            <li class="file-item" data-file="bench/report.py">
+                                <i data-lucide="file-code"></i>
+                                <div class="file-info">
+                                    <strong>report.py</strong>
+                                    <span>JSON → REPORT.md generator</span>
+                                </div>
+                            </li>
+                            <li class="file-item" data-file="bench/stats.py">
+                                <i data-lucide="file-code"></i>
+                                <div class="file-info">
+                                    <strong>stats.py</strong>
+                                    <span>Nearest-rank percentiles</span>
+                                </div>
+                            </li>
+                            <li class="file-item" data-file="bench/config.py">
+                                <i data-lucide="file-code"></i>
+                                <div class="file-info">
+                                    <strong>config.py</strong>
+                                    <span>YAML + env-var interpolation</span>
+                                </div>
+                            </li>
+                            <li class="file-item" data-file="config/workloads.yaml">
+                                <i data-lucide="file-text"></i>
+                                <div class="file-info">
+                                    <strong>workloads.yaml</strong>
+                                    <span>Standard query definitions</span>
+                                </div>
+                            </li>
+                            <li class="file-item" data-file="config/databases.yaml">
+                                <i data-lucide="file-text"></i>
+                                <div class="file-info">
+                                    <strong>databases.yaml</strong>
+                                    <span>Platform connection configs</span>
+                                </div>
+                            </li>
+                            <li class="file-item" data-file="scripts/selftest.py">
+                                <i data-lucide="file-code"></i>
+                                <div class="file-info">
+                                    <strong>selftest.py</strong>
+                                    <span>In-memory FakeAdapter test harness</span>
+                                </div>
+                            </li>
+                            <li class="file-item" data-file="docker/docker-compose.yml">
+                                <i data-lucide="box"></i>
+                                <div class="file-info">
+                                    <strong>docker-compose.yml</strong>
+                                    <span>Track B container specs (0.5 vCPU/256M)</span>
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- Code Viewer & Deep Explanation -->
+                    <div class="file-viewer glass-card">
+                        <div class="file-viewer-header">
+                            <div class="viewer-meta">
+                                <i data-lucide="code" id="active-file-icon"></i>
+                                <span id="active-filename">README.md</span>
+                            </div>
+                            <div class="viewer-actions">
+                                <button class="btn btn-sm btn-outline" id="btn-copy-code">
+                                    <i data-lucide="copy"></i>
+                                    <span>Copy Code</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Architecture & Purpose Annotation Box -->
+                        <div class="file-annotation" id="file-annotation">
+                            <h4><i data-lucide="info"></i> File Purpose & Architecture Analysis</h4>
+                            <p id="file-annotation-text">Loading...</p>
+                        </div>
+
+                        <div class="code-container">
+                            <pre><code id="code-display" class="python-code">Loading file content...</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 3: Methodology & Parity -->
+            <section id="tab-methodology" class="tab-panel">
+                <div class="methodology-grid">
+                    <div class="glass-card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <i data-lucide="cpu"></i>
+                                <h3>1. Resource Parity Principle</h3>
+                            </div>
+                        </div>
+                        <p class="card-p">
+                            CognoDB's free <code>c0</code> tier is the baseline instance: <strong>0.5 vCPU (burstable) / 256 MB RAM / 1 GB disk</strong>.
+                            No competing database is granted a higher hardware ceiling. Every self-hosted container in Track B is hard-capped at <code>--cpus=0.5 --memory=256m</code>.
+                        </p>
+                        <div class="spec-table-box">
+                            <table class="spec-table">
+                                <thead>
+                                    <tr>
+                                        <th>Platform</th>
+                                        <th>Track</th>
+                                        <th>Hardware Limit</th>
+                                        <th>Parity Strategy</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><strong>CognoDB Cloud</strong></td>
+                                        <td><span class="badge blue">Track A (Cloud)</span></td>
+                                        <td>0.5 vCPU / 256MB</td>
+                                        <td>Baseline specification</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Neo4j AuraDB Free</strong></td>
+                                        <td><span class="badge blue">Track A (Cloud)</span></td>
+                                        <td>Aura Free shared</td>
+                                        <td>Matched to lowest free cloud tier</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Memgraph</strong></td>
+                                        <td><span class="badge purple">Track B (Docker)</span></td>
+                                        <td>0.5 vCPU / 256MB</td>
+                                        <td>Strict Docker resource caps</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>FalkorDB</strong></td>
+                                        <td><span class="badge purple">Track B (Docker)</span></td>
+                                        <td>0.5 vCPU / 256MB</td>
+                                        <td>Strict Docker resource caps</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>ArangoDB</strong></td>
+                                        <td><span class="badge purple">Track B (Docker)</span></td>
+                                        <td>0.5 vCPU / 256MB</td>
+                                        <td>Strict Docker resource caps</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="glass-card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <i data-lucide="clock"></i>
+                                <h3>2. Strict Timing & Statistical Policy</h3>
+                            </div>
+                        </div>
+                        <div class="timing-stages">
+                            <div class="timing-stage">
+                                <div class="stage-num">01</div>
+                                <div class="stage-info">
+                                    <strong>Cold Sample (10 iters)</strong>
+                                    <span>Captured immediately upon connecting before cache warm-up. Never blended into warm numbers.</span>
+                                </div>
+                            </div>
+                            <div class="timing-stage">
+                                <div class="stage-num">02</div>
+                                <div class="stage-info">
+                                    <strong>Warm-up Phase (20 iters)</strong>
+                                    <span>JIT execution and driver connection pools warm up. Timings are completely discarded.</span>
+                                </div>
+                            </div>
+                            <div class="timing-stage">
+                                <div class="stage-num">03</div>
+                                <div class="stage-info">
+                                    <strong>Warm Sample (120 iters)</strong>
+                                    <span>The measured headline sample. Timer wraps ONLY the driver call; argument RNG is excluded.</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="alert-box">
+                            <i data-lucide="alert-circle"></i>
+                            <div><strong>Nearest-Rank Percentiles:</strong> Percentiles (p50, p95, p99) use nearest-rank on the sorted distribution rather than synthetic interpolation.</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 4: Query Parity -->
+            <section id="tab-queries" class="tab-panel">
+                <div class="query-parity-container">
+                    <div class="glass-card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <i data-lucide="git-compare"></i>
+                                <h3>Cypher vs. AQL Logical Equivalents</h3>
+                            </div>
+                        </div>
+                        <p class="card-p">
+                            Every database executes the exact same logical graph query. Where query languages differ (Cypher vs AQL), equivalent constructs with identical index utilization and limit semantics are used:
+                        </p>
+
+                        <div class="query-cards-grid">
+                            <div class="query-block glass-card">
+                                <h4>1. Point Lookup</h4>
+                                <div class="code-pair">
+                                    <div class="lang-box">
+                                        <span class="lang-tag">Cypher (Neo4j / Memgraph / Cogno / Falkor)</span>
+                                        <pre><code>MATCH (n:Person {uid: $uid})
+RETURN n.uid AS uid</code></pre>
+                                    </div>
+                                    <div class="lang-box">
+                                        <span class="lang-tag">AQL (ArangoDB)</span>
+                                        <pre><code>FOR p IN person
+  FILTER p.uid == @uid
+  RETURN p.uid</code></pre>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="query-block glass-card">
+                                <h4>2. Secondary Filtered Scan (Indexed)</h4>
+                                <div class="code-pair">
+                                    <div class="lang-box">
+                                        <span class="lang-tag">Cypher</span>
+                                        <pre><code>MATCH (n:Person)
+WHERE n.bucket = $b
+RETURN n.uid AS uid LIMIT 500</code></pre>
+                                    </div>
+                                    <div class="lang-box">
+                                        <span class="lang-tag">AQL</span>
+                                        <pre><code>FOR p IN person
+  FILTER p.bucket == @b
+  LIMIT 500
+  RETURN p.uid</code></pre>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="query-block glass-card">
+                                <h4>3. N-Hop Traversal (with Limit Cap)</h4>
+                                <div class="code-pair">
+                                    <div class="lang-box">
+                                        <span class="lang-tag">Cypher</span>
+                                        <pre><code>MATCH (a:Person {uid: $uid})-[:FOLLOWS*2..2]->(b:Person)
+RETURN DISTINCT b.uid AS uid LIMIT $lim</code></pre>
+                                    </div>
+                                    <div class="lang-box">
+                                        <span class="lang-tag">AQL</span>
+                                        <pre><code>FOR v IN 2..2 OUTBOUND @start_node follows
+  OPTIONS { uniqueVertices: 'global' }
+  LIMIT @lim
+  RETURN DISTINCT v.uid</code></pre>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="query-block glass-card">
+                                <h4>4. Group-By Aggregation</h4>
+                                <div class="code-pair">
+                                    <div class="lang-box">
+                                        <span class="lang-tag">Cypher</span>
+                                        <pre><code>MATCH (n:Person)
+RETURN n.bucket AS bucket, count(*) AS c
+ORDER BY c DESC LIMIT 20</code></pre>
+                                    </div>
+                                    <div class="lang-box">
+                                        <span class="lang-tag">AQL</span>
+                                        <pre><code>FOR p IN person
+  COLLECT b = p.bucket WITH COUNT INTO c
+  SORT c DESC
+  LIMIT 20
+  RETURN { bucket: b, count: c }</code></pre>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 5: Report Matrix -->
+            <section id="tab-report" class="tab-panel">
+                <div class="glass-card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <i data-lucide="file-check-2"></i>
+                            <h3>Automated Benchmark REPORT.md Matrix</h3>
+                        </div>
+                    </div>
+                    <div class="report-content" id="report-rendered">
+                        <p class="text-muted">Run the benchmark suite to generate the dynamic REPORT.md markdown summary.</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>

@@ -1,0 +1,90 @@
+# TRACK A -- managed cloud free tiers.
+#
+# No secrets in this file. Every credential is a ${VAR} reference resolved from
+# the process environment (or .env, which is gitignored). bench/config.py
+# refuses to start if any referenced variable is unset, so a half-configured
+# run cannot silently produce a results file that looks complete.
+#
+# `advertised_specs` must be copied VERBATIM from the vendor's own console for
+# the instance you actually provisioned -- not from marketing pages, not from
+# documentation. Where a vendor does not publish the number, write
+# "not published" rather than guessing. REPORT.md prints this column as-is.
+#
+# Set `enabled: false` to park a platform without deleting its block; the
+# runner prints what it skipped.
+
+databases:
+  - name: CognoDB Cloud
+    adapter: bolt
+    enabled: true
+    tier: free c0
+    region: ${COGNODB_REGION}
+    advertised_specs: "0.5 vCPU (burstable) / 256 MB RAM / 1 GB disk"
+    uri: ${COGNODB_URI}            # bolt+s://<host>:<port>
+    user: ${COGNODB_USER}
+    password: ${COGNODB_PASSWORD}
+    database: ${COGNODB_DATABASE}
+    query_timeout_s: 30
+    pool_size: 64                  # must exceed peak concurrency (40) or the
+                                   # driver queues and we measure our own pool
+
+  - name: Neo4j AuraDB Free
+    adapter: bolt
+    enabled: true
+    tier: AuraDB Free
+    region: ${NEO4J_REGION}
+    # NOTE: Aura Free has historically enforced a hard node/relationship cap.
+    # Verify the current cap in your console BEFORE sizing the dataset -- if
+    # 150k/250k exceeds it, that is a finding to report, not a reason to shrink
+    # the dataset for everyone.
+    advertised_specs: "fill in verbatim from the Aura console"
+    uri: ${NEO4J_URI}              # neo4j+s://<dbid>.databases.neo4j.io
+    user: ${NEO4J_USER}
+    password: ${NEO4J_PASSWORD}
+    database: neo4j
+    query_timeout_s: 30
+    pool_size: 64
+
+  - name: Memgraph Cloud
+    adapter: bolt
+    enabled: true
+    tier: free
+    region: ${MEMGRAPH_REGION}
+    advertised_specs: "fill in verbatim from the Memgraph Cloud console"
+    uri: ${MEMGRAPH_URI}           # bolt+s://<host>:7687
+    user: ${MEMGRAPH_USER}
+    password: ${MEMGRAPH_PASSWORD}
+    database: memgraph
+    query_timeout_s: 30
+    pool_size: 64
+
+  - name: FalkorDB Cloud
+    adapter: falkordb
+    enabled: true
+    tier: free
+    region: ${FALKORDB_REGION}
+    advertised_specs: "fill in verbatim from the FalkorDB Cloud console"
+    host: ${FALKORDB_HOST}
+    port: ${FALKORDB_PORT}
+    username: ${FALKORDB_USERNAME}
+    password: ${FALKORDB_PASSWORD}
+    ssl: true
+    graph: bench
+    query_timeout_s: 30
+
+  - name: ArangoDB (AQL)
+    adapter: arangodb
+    enabled: true
+    tier: free
+    region: ${ARANGO_REGION}
+    # The deliberate non-Cypher engine. Its presence is what forces the
+    # cross-language translation to be stated rather than assumed -- see the
+    # ArangoAdapter docstring and REPORT.md section 10.
+    advertised_specs: "fill in verbatim from the ArangoGraph console"
+    url: ${ARANGO_URL}             # https://<host>:8529
+    database: ${ARANGO_DATABASE}
+    user: ${ARANGO_USER}
+    password: ${ARANGO_PASSWORD}
+    vertex_collection: person
+    edge_collection: follows
+    query_timeout_s: 30

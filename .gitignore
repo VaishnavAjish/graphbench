@@ -1,0 +1,34 @@
+# Credentials. The single most important line in this file.
+.env
+.env.*
+!.env.example
+
+# Downloaded source graphs. soc-Pokec is ~400 MB compressed; it is fetched on
+# demand and verified by checksum, so it does not belong in git.
+.cache/
+*.txt.gz
+*.part
+
+# Generated results are COMMITTED, not ignored -- REPORT.md and results/*.json
+# are the deliverable, and a reader must be able to see the raw numbers behind
+# every published table without re-running the benchmark. Only scratch output
+# is ignored:
+results/_selftest/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# Node
+node_modules/
+package-lock.json
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

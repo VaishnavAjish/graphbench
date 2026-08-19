@@ -1,0 +1,82 @@
+# TRACK B -- self-hosted parity, every engine in Docker on one host.
+#
+# Why this track exists: Track A measures what a user experiences, network
+# included. On sub-millisecond queries the network round trip to a vendor's
+# region can dominate the actual database work, so Track A alone cannot
+# separate "this engine is faster" from "this endpoint is closer". Track B
+# removes the network variable by running everything on one host under
+# identical cgroup limits.
+#
+# CognoDB Cloud is absent from this track because it is cloud-only. That is a
+# real limitation of the comparison, not something to work around, and it is
+# stated in the README rather than hidden by quietly substituting Neo4j for it.
+#
+# Bring the stack up first:
+#     docker compose -f docker/docker-compose.yml up -d
+#     python run.py all --databases config/databases.local.yaml \
+#                       --results results/track-b
+#
+# Note the separate --results directory. Merging a Track A run and a Track B
+# run into one REPORT.md would produce a table comparing two different fairness
+# regimes as though they were one.
+
+databases:
+  - name: Neo4j 5 (Docker)
+    adapter: bolt
+    enabled: true
+    tier: "self-hosted, cgroup-capped"
+    region: local
+    advertised_specs: "0.5 vCPU / 256 MB / 1 GB (docker cpus+mem_limit)"
+    uri: bolt://localhost:7687
+    user: neo4j
+    password: ${LOCAL_NEO4J_PASSWORD}
+    database: neo4j
+    query_timeout_s: 30
+    pool_size: 64
+    # EXPECT THIS TO FAIL OR THRASH. A JVM heap plus page cache inside 256 MB
+    # is close to the floor for Neo4j 5. If it OOMs, that is the single most
+    # useful finding in this track -- record the exact exception and the
+    # container's exit code, do not raise the memory limit for one engine.
+
+  - name: Memgraph (Docker)
+    adapter: bolt
+    enabled: true
+    tier: "self-hosted, cgroup-capped"
+    region: local
+    advertised_specs: "0.5 vCPU / 256 MB / 1 GB (docker cpus+mem_limit)"
+    uri: bolt://localhost:7688
+    user: ""
+    password: ""
+    database: memgraph
+    query_timeout_s: 30
+    pool_size: 64
+    # In-memory engine: 250k relationships may not fit 256 MB. Same rule --
+    # if it does not fit, report that it does not fit.
+
+  - name: FalkorDB (Docker)
+    adapter: falkordb
+    enabled: true
+    tier: "self-hosted, cgroup-capped"
+    region: local
+    advertised_specs: "0.5 vCPU / 256 MB / 1 GB (docker cpus+mem_limit)"
+    host: localhost
+    port: 6379
+    username: ""
+    password: ""
+    ssl: false
+    graph: bench
+    query_timeout_s: 30
+
+  - name: ArangoDB (Docker)
+    adapter: arangodb
+    enabled: true
+    tier: "self-hosted, cgroup-capped"
+    region: local
+    advertised_specs: "0.5 vCPU / 256 MB / 1 GB (docker cpus+mem_limit)"
+    url: http://localhost:8529
+    database: _system
+    user: root
+    password: ${LOCAL_ARANGO_PASSWORD}
+    vertex_collection: person
+    edge_collection: follows
+    query_timeout_s: 30

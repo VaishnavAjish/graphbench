@@ -1,0 +1,30 @@
+# Pinned exactly. A benchmark that cannot be re-run against the same driver
+# versions is not reproducible: driver-side batching, connection pooling, and
+# result streaming all changed measurably between minor releases of these
+# packages, and any of those changes moves the numbers.
+#
+# Regenerate with `pip freeze` after a deliberate upgrade, and note the upgrade
+# in the README's caveats section -- results from two different driver sets
+# should not be merged into one table.
+
+# --- Bolt / Cypher: CognoDB Cloud, Neo4j AuraDB, Memgraph -------------------
+# Pinned to 5.x on purpose. The 6.x line is newer but the whole comparison
+# depends on Bolt-protocol compatibility with a third-party server (CognoDB),
+# and 5.28 is the most widely-supported client across Neo4j-protocol engines.
+# If you move to 6.x, re-verify connectivity on every Bolt platform first.
+neo4j==5.28.4
+
+# --- FalkorDB: Cypher over RESP ---------------------------------------------
+falkordb==1.7.1
+redis==8.1.0
+
+# --- ArangoDB: AQL, the deliberate non-Cypher engine ------------------------
+python-arango==8.3.3
+requests==2.33.1
+
+# --- harness ----------------------------------------------------------------
+PyYAML==6.0.3
+
+# Charts only. bench/report.py degrades to tables-without-charts if this is
+# absent, so the benchmark stays runnable on a machine with no plotting stack.
+matplotlib==3.10.9

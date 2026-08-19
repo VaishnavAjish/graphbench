@@ -1,0 +1,112 @@
+# TRACK B -- every engine under identical cgroup limits on one host.
+#
+# The limits below are the whole point of this file. They are copied from the
+# SMALLEST tier in the cloud comparison (CognoDB free c0: 0.5 vCPU / 256 MB /
+# 1 GB) and applied without exception. If an engine cannot start or cannot hold
+# the dataset inside them, that is the result. Raising the limit for one engine
+# would silently turn a fairness experiment into a vendor showcase.
+#
+#     docker compose -f docker/docker-compose.yml up -d
+#     docker stats --no-stream          # verify the caps are actually applied
+#     python run.py all --databases config/databases.local.yaml \
+#                       --results results/track-b
+#
+# On Windows this requires Docker Desktop with the WSL2 backend. The Hyper-V
+# backend does not honour per-container `cpus` the same way; check
+# `docker stats` before trusting any number from this track.
+#
+# Ports are deliberately distinct per engine so all four can run at once and
+# the runner needs no orchestration.
+
+x-limits: &limits
+  cpus: "0.5"
+  mem_limit: 256m
+  mem_reservation: 256m
+  # Disable swap accounting escape hatches: with memswap_limit == mem_limit the
+  # container cannot page out to swap and quietly exceed its RAM budget, which
+  # would make the 256 MB cap decorative.
+  memswap_limit: 256m
+  restart: "no"
+
+services:
+
+  neo4j:
+    <<: *limits
+    image: neo4j:5.26-community
+    container_name: gb-neo4j
+    ports:
+      - "7687:7687"
+      - "7474:7474"
+    environment:
+      NEO4J_AUTH: "neo4j/${LOCAL_NEO4J_PASSWORD:-benchpassword}"
+      # Heap and page cache are set explicitly rather than left to Neo4j's
+      # auto-tuning, which reads the HOST's memory and would size a heap far
+      # larger than the container's 256 MB cap -- the JVM would then be OOM
+      # -killed by the kernel with no useful error. These values are the
+      # smallest that let the process start; they are NOT tuned for
+      # performance, and the README says so.
+      NEO4J_server_memory_heap_initial__size: 96m
+      NEO4J_server_memory_heap_max__size: 96m
+      NEO4J_server_memory_pagecache_size: 64m
+      NEO4J_server_default__listen__address: "0.0.0.0"
+    volumes:
+      - neo4j-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:7474 >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  memgraph:
+    <<: *limits
+    image: memgraph/memgraph:2.19.0
+    container_name: gb-memgraph
+    ports:
+      - "7688:7687"
+    command: ["--log-level=WARNING", "--also-log-to-stderr"]
+    volumes:
+      - memgraph-data:/var/lib/memgraph
+    healthcheck:
+      test: ["CMD-SHELL", "echo > /dev/tcp/localhost/7687"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  falkordb:
+    <<: *limits
+    image: falkordb/falkordb:latest
+    container_name: gb-falkordb
+    ports:
+      - "6379:6379"
+    volumes:
+      - falkordb-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  arangodb:
+    <<: *limits
+    image: arangodb:3.11
+    container_name: gb-arangodb
+    ports:
+      - "8529:8529"
+    environment:
+      ARANGO_ROOT_PASSWORD: "${LOCAL_ARANGO_PASSWORD:-benchpassword}"
+      # Same reasoning as Neo4j's heap: RocksDB's default block cache is sized
+      # from host memory and must be pinned down to fit the cap.
+      ARANGODB_OVERRIDE_DETECTED_TOTAL_MEMORY: "268435456"
+    volumes:
+      - arango-data:/var/lib/arangodb3
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8529/_api/version >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  neo4j-data:
+  memgraph-data:
+  falkordb-data:
+  arango-data:
