@@ -275,7 +275,10 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/favicon.ico') {
         const logoPath = path.join(PUBLIC_DIR, 'logo.png');
         if (fs.existsSync(logoPath)) {
-            res.writeHead(200, { 'Content-Type': 'image/png' });
+            res.writeHead(200, {
+                'Content-Type': 'image/png',
+                'Cache-Control': 'no-cache, no-store, must-revalidate'
+            });
             res.end(fs.readFileSync(logoPath));
             return;
         }
